@@ -171,7 +171,7 @@
         "clauFlo.autocomplete.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable Claude-powered inline autocomplete"
+          "markdownDescription": "**[Experimental]** Enable Claude-powered inline autocomplete. Disabled by default — not recommended for daily use due to latency."
         },
         "clauFlo.autocomplete.backend": {
           "type": "string",

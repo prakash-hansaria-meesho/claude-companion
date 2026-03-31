@@ -69,19 +69,16 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Autocomplete provider (disabled by default - enable via settings or toggle command)
+  // Autocomplete provider — experimental, disabled by default.
+  // Only registered when explicitly enabled via settings or toggle command.
   const autocompleteProvider = new ClaudeAutocompleteProvider();
-  // Register the provider always, but it no-ops internally when disabled
-  context.subscriptions.push(
-    vscode.languages.registerInlineCompletionItemProvider(
-      { pattern: '**' },
-      autocompleteProvider
-    )
-  );
-  // Show a welcome tip on first activation if autocomplete is off
-  const hasShownTip = context.globalState.get<boolean>('autocompleteTipShown');
-  if (!hasShownTip && !autocompleteProvider.enabled) {
-    context.globalState.update('autocompleteTipShown', true);
+  if (autocompleteProvider.enabled) {
+    context.subscriptions.push(
+      vscode.languages.registerInlineCompletionItemProvider(
+        { pattern: '**' },
+        autocompleteProvider
+      )
+    );
   }
 
   // Register commands
