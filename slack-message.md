@@ -1,46 +1,43 @@
 Hey team! :wave:
 
-Since we moved from Cursor to Claude, one thing we've all been missing is the ability to **properly visualize code changes**. Cursor made it super intuitive — you could see exactly what changed, accept or reject individual pieces, and stay in flow. With Claude (CLI or VS Code plugin), we lost that and have been left squinting at raw diffs or manually scanning files to figure out what's new.
-
-So I built a small VS Code extension to bring that experience back — **ClauFlo**.
+Since we moved from Cursor to Claude, we've been struggling to **visualize code changes** properly. So I built a VS Code extension to bring that experience back — **ClauFlo v2**.
 
 ---
 
-:zap: **What it does**
-- **Real-time diff visualization** — the moment Claude modifies a file, changes are highlighted in your editor
-- **Two view modes** — pick what works for you:
-  - *Inline mode* (like Cursor) — green highlights for additions, ghost text for deletions, right inside your editor
-  - *Side-by-side mode* (like Git changes) — classic split diff view
-- **Accept / Reject per change** — review each hunk individually. No more all-or-nothing
-- **Changed files sidebar** — all modified files at a glance with pending change counts
-- Works with both **Claude CLI** and **Claude VS Code plugin**
+:thinking_face: **The problem**
+Claude (CLI/plugin) modifies our files, but there's no clean way to see what changed, or accept/reject individual pieces like Cursor did.
+
+:zap: **What ClauFlo does**
+- **Real-time diff visualization** with two view modes:
+  - **Inline** (like Cursor) — green highlights for additions, ghost text for deletions, accept/reject buttons per change
+  - **Side-by-side** (like Git) — classic split diff view
+- **Autocomplete** powered by Claude Code CLI — uses our org license, no API key needed
+- Sidebar showing all changed files with pending counts
 
 ---
 
-:package: **How to install (2 minutes)**
-
-I'm attaching two files:
-1. `clau-flo-0.1.0.vsix` — the extension
-2. `install-vsix.sh` — the installer script
-
-**Just run:**
+:package: **Install (1 command)**
 ```
-bash ~/Downloads/install-vsix.sh
+git clone https://github.com/prakash-hansaria-meesho/claude-companion.git && bash claude-companion/scripts/install-vsix.sh
 ```
-*(assumes both files are in your Downloads folder after downloading from Slack)*
-
-Or if you saved them somewhere else:
-```
-bash install-vsix.sh /path/to/clau-flo-0.1.0.vsix
-```
-
-After install, reload VS Code (`Cmd+Shift+P` → `Developer: Reload Window`) and you'll see the **ClauFlo** icon in the Activity Bar. That's it — it starts working automatically.
+The script handles everything: nvm, Node.js 20, and the extension install. Then reload VS Code (`Cmd+Shift+P` → `Developer: Reload Window`).
 
 ---
 
-:gear: **Quick tips**
-- Toggle between inline/side-by-side: click the status bar item or `Cmd+Shift+P` → `ClauFlo: Toggle Inline/Side-by-Side`
-- Accept/Reject buttons appear as CodeLens above each change hunk
-- It also has an optional Claude-powered autocomplete feature (off by default) — turn it on from settings if you want to try it
+:book: **How to use**
 
-Give it a shot and let me know how it goes! :raised_hands:
+**Diff Viewer (enabled by default):**
+1. Click the **ClauFlo** icon in the Activity Bar — session starts automatically
+2. Use Claude as normal — changes appear in real-time
+3. Click `Accept` / `Reject` on each change, or bulk accept/reject from the sidebar
+4. Toggle view mode: `Cmd+Shift+P` → `ClauFlo: Toggle Inline/Side-by-Side`
+
+**Autocomplete (opt-in):**
+1. `Cmd+Shift+P` → `ClauFlo: Toggle Autocomplete`
+2. Uses Claude Code CLI under the hood — works with our org license, no API key setup needed
+3. Just type and you'll see inline suggestions
+
+---
+
+Repo: https://github.com/prakash-hansaria-meesho/claude-companion
+Give it a spin! :raised_hands:

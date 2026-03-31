@@ -2,7 +2,7 @@
   "name": "clau-flo",
   "displayName": "ClauFlo",
   "description": "Visualize Claude diffs with inline/side-by-side views, accept/reject changes, and Claude-powered autocomplete",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -171,7 +171,16 @@
         "clauFlo.autocomplete.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable Claude-powered inline autocomplete (requires Anthropic API key)"
+          "description": "Enable Claude-powered inline autocomplete"
+        },
+        "clauFlo.autocomplete.backend": {
+          "type": "string",
+          "enum": [
+            "cli",
+            "api"
+          ],
+          "default": "cli",
+          "description": "Autocomplete backend: 'cli' uses Claude Code CLI (org license, no API key needed) or 'api' uses Anthropic API directly (requires API key)"
         },
         "clauFlo.autocomplete.apiKey": {
           "type": "string",

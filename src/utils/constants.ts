@@ -22,6 +22,7 @@ export const CONFIG = {
   debounceMs: 'clauFlo.debounceMs',
   excludePatterns: 'clauFlo.excludePatterns',
   autocompleteEnabled: 'clauFlo.autocomplete.enabled',
+  autocompleteBackend: 'clauFlo.autocomplete.backend',
   autocompleteApiKey: 'clauFlo.autocomplete.apiKey',
   autocompleteModel: 'clauFlo.autocomplete.model',
   autocompleteMaxTokens: 'clauFlo.autocomplete.maxTokens',

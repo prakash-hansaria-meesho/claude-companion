@@ -5,4 +5,9 @@ src/**
 tsconfig.json
 **/*.ts
 **/*.map
-node_modules/**
+node_modules/.package-lock.json
+node_modules/**/README.md
+node_modules/**/CHANGELOG.md
+node_modules/**/LICENSE
+node_modules/**/*.d.ts
+node_modules/**/*.map
