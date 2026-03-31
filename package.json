@@ -1,0 +1,243 @@
+{
+  "name": "clau-flo",
+  "displayName": "ClauFlo",
+  "description": "Visualize Claude diffs with inline/side-by-side views, accept/reject changes, and Claude-powered autocomplete",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "clau-flo.startSession",
+        "title": "ClauFlo: Start Diff Session",
+        "icon": "$(play)"
+      },
+      {
+        "command": "clau-flo.endSession",
+        "title": "ClauFlo: End Diff Session",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "clau-flo.toggleViewMode",
+        "title": "ClauFlo: Toggle Inline/Side-by-Side"
+      },
+      {
+        "command": "clau-flo.acceptHunk",
+        "title": "ClauFlo: Accept Change"
+      },
+      {
+        "command": "clau-flo.rejectHunk",
+        "title": "ClauFlo: Reject Change"
+      },
+      {
+        "command": "clau-flo.acceptAllFile",
+        "title": "ClauFlo: Accept All Changes in File",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "clau-flo.rejectAllFile",
+        "title": "ClauFlo: Reject All Changes in File",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "clau-flo.acceptAll",
+        "title": "ClauFlo: Accept All Changes",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "clau-flo.rejectAll",
+        "title": "ClauFlo: Reject All Changes",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "clau-flo.openFile",
+        "title": "ClauFlo: Open Changed File"
+      },
+      {
+        "command": "clau-flo.refreshSession",
+        "title": "ClauFlo: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "clau-flo.toggleAutocomplete",
+        "title": "ClauFlo: Toggle Autocomplete"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clau-flo",
+          "title": "ClauFlo",
+          "icon": "resources/icons/diff-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "clau-flo": [
+        {
+          "id": "claudeDiffFiles",
+          "name": "Changed Files"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "clau-flo.startSession",
+          "when": "view == claudeDiffFiles && !clau-flo.sessionActive",
+          "group": "navigation"
+        },
+        {
+          "command": "clau-flo.endSession",
+          "when": "view == claudeDiffFiles && clau-flo.sessionActive",
+          "group": "navigation"
+        },
+        {
+          "command": "clau-flo.refreshSession",
+          "when": "view == claudeDiffFiles && clau-flo.sessionActive",
+          "group": "navigation"
+        },
+        {
+          "command": "clau-flo.acceptAll",
+          "when": "view == claudeDiffFiles && clau-flo.sessionActive",
+          "group": "navigation"
+        },
+        {
+          "command": "clau-flo.rejectAll",
+          "when": "view == claudeDiffFiles && clau-flo.sessionActive",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "clau-flo.acceptAllFile",
+          "when": "view == claudeDiffFiles && viewItem == changedFile",
+          "group": "inline"
+        },
+        {
+          "command": "clau-flo.rejectAllFile",
+          "when": "view == claudeDiffFiles && viewItem == changedFile",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "ClauFlo",
+      "properties": {
+        "clauFlo.defaultViewMode": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "sideBySide"
+          ],
+          "default": "inline",
+          "description": "Default view mode for diffs"
+        },
+        "clauFlo.autoStartSession": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start a diff session when file changes are detected"
+        },
+        "clauFlo.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce interval for file change detection (ms)"
+        },
+        "clauFlo.excludePatterns": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/out/**",
+            "**/dist/**",
+            "**/*.lock"
+          ],
+          "description": "File patterns to exclude from watching"
+        },
+        "clauFlo.autocomplete.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Claude-powered inline autocomplete (requires Anthropic API key)"
+        },
+        "clauFlo.autocomplete.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key for autocomplete. Can also be set via ANTHROPIC_API_KEY env variable."
+        },
+        "clauFlo.autocomplete.model": {
+          "type": "string",
+          "enum": [
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-6",
+            "claude-opus-4-6"
+          ],
+          "default": "claude-haiku-4-5-20251001",
+          "description": "Claude model for autocomplete (Haiku recommended for speed)"
+        },
+        "clauFlo.autocomplete.maxTokens": {
+          "type": "number",
+          "default": 256,
+          "description": "Maximum tokens for autocomplete responses"
+        },
+        "clauFlo.autocomplete.debounceMs": {
+          "type": "number",
+          "default": 500,
+          "description": "Debounce interval before triggering autocomplete (ms)"
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "clauFlo.addedLineBackground",
+        "description": "Background color for added lines in inline diff",
+        "defaults": {
+          "dark": "#2ea04330",
+          "light": "#2ea04320",
+          "highContrast": "#2ea04350"
+        }
+      },
+      {
+        "id": "clauFlo.removedLineBackground",
+        "description": "Background color for removed lines in inline diff",
+        "defaults": {
+          "dark": "#f8514930",
+          "light": "#f8514920",
+          "highContrast": "#f8514950"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "npx @vscode/vsce@latest package --allow-missing-repository"
+  },
+  "dependencies": {
+    "diff": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.2.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.3.0"
+  }
+}

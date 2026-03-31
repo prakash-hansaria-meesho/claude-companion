@@ -1,0 +1,189 @@
+import * as vscode from 'vscode';
+import { SessionManager } from './session/SessionManager';
+import { FileWatcher } from './watcher/FileWatcher';
+import { OriginalContentProvider } from './views/sideBySide/SideBySideDiffProvider';
+import { openSideBySideDiff } from './views/sideBySide/SideBySideCommands';
+import { InlineDecorationManager } from './views/inline/InlineDecorationManager';
+import { InlineCodeLensProvider } from './views/inline/InlineCodeLensProvider';
+import { ChangedFilesProvider } from './views/treeView/ChangedFilesProvider';
+import { ClaudeAutocompleteProvider } from './autocomplete/ClaudeAutocompleteProvider';
+import { COMMANDS, CONFIG } from './utils/constants';
+
+export function activate(context: vscode.ExtensionContext) {
+  // Core services
+  const sessionManager = new SessionManager(context);
+  const fileWatcher = new FileWatcher(sessionManager);
+
+  // Side-by-side diff content provider
+  const originalContentProvider = new OriginalContentProvider(sessionManager);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      OriginalContentProvider.scheme,
+      originalContentProvider
+    )
+  );
+
+  // Inline decorations (Cursor-style)
+  const inlineDecorationManager = new InlineDecorationManager(sessionManager);
+
+  // CodeLens for accept/reject
+  const codeLensProvider = new InlineCodeLensProvider(sessionManager);
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ scheme: 'file' }, codeLensProvider)
+  );
+
+  // Tree view for changed files sidebar
+  const changedFilesProvider = new ChangedFilesProvider(sessionManager);
+  const treeView = vscode.window.createTreeView('claudeDiffFiles', {
+    treeDataProvider: changedFilesProvider,
+    showCollapseAll: false,
+  });
+
+  // Status bar item for session
+  const sessionStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
+  sessionStatusBar.command = COMMANDS.toggleViewMode;
+
+  function updateSessionStatusBar() {
+    if (sessionManager.isActive) {
+      const pending = sessionManager.getPendingHunkCount();
+      const mode = sessionManager.viewMode === 'inline' ? 'Inline' : 'Side-by-Side';
+      sessionStatusBar.text = `$(diff) Claude Diff: ${pending} pending (${mode})`;
+      sessionStatusBar.tooltip = 'Click to toggle view mode';
+      sessionStatusBar.show();
+    } else {
+      sessionStatusBar.hide();
+    }
+  }
+
+  sessionManager.onSessionStarted(() => updateSessionStatusBar());
+  sessionManager.onSessionEnded(() => updateSessionStatusBar());
+  sessionManager.onDiffUpdated(() => updateSessionStatusBar());
+
+  // Autocomplete provider (disabled by default - enable via settings or toggle command)
+  const autocompleteProvider = new ClaudeAutocompleteProvider();
+  // Register the provider always, but it no-ops internally when disabled
+  context.subscriptions.push(
+    vscode.languages.registerInlineCompletionItemProvider(
+      { pattern: '**' },
+      autocompleteProvider
+    )
+  );
+  // Show a welcome tip on first activation if autocomplete is off
+  const hasShownTip = context.globalState.get<boolean>('autocompleteTipShown');
+  if (!hasShownTip && !autocompleteProvider.enabled) {
+    context.globalState.update('autocompleteTipShown', true);
+  }
+
+  // Register commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(COMMANDS.startSession, () => {
+      sessionManager.start();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.endSession, () => {
+      sessionManager.end();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.toggleViewMode, () => {
+      const newMode = sessionManager.toggleViewMode();
+      vscode.window.showInformationMessage(`Claude Diff: Switched to ${newMode === 'inline' ? 'Inline' : 'Side-by-Side'} mode`);
+      inlineDecorationManager.refreshActiveEditor();
+      codeLensProvider.refresh();
+      updateSessionStatusBar();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.acceptHunk, (filePath: string, hunkId: string) => {
+      sessionManager.markHunkAccepted(filePath, hunkId);
+      inlineDecorationManager.refreshActiveEditor();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.rejectHunk, async (filePath: string, hunkId: string) => {
+      const success = await sessionManager.markHunkRejected(filePath, hunkId);
+      if (success) {
+        inlineDecorationManager.refreshActiveEditor();
+      }
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.acceptAllFile, (filePathOrItem: string | { diffFile?: { filePath: string } }) => {
+      const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
+      if (filePath) {
+        sessionManager.acceptAllFileChanges(filePath);
+        inlineDecorationManager.refreshActiveEditor();
+      }
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.rejectAllFile, async (filePathOrItem: string | { diffFile?: { filePath: string } }) => {
+      const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
+      if (filePath) {
+        await sessionManager.rejectAllFileChanges(filePath);
+        inlineDecorationManager.refreshActiveEditor();
+      }
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.acceptAll, () => {
+      sessionManager.acceptAllChanges();
+      inlineDecorationManager.clearAllDecorations();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.rejectAll, async () => {
+      await sessionManager.rejectAllChanges();
+      inlineDecorationManager.clearAllDecorations();
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.openFile, (filePath: string, forceMode?: string) => {
+      const mode = forceMode || sessionManager.viewMode;
+      if (mode === 'sideBySide') {
+        openSideBySideDiff(filePath);
+      } else {
+        // Open the file and let inline decorations show
+        vscode.workspace.openTextDocument(filePath).then(doc => {
+          vscode.window.showTextDocument(doc);
+        });
+      }
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.refreshSession, async () => {
+      if (sessionManager.isActive) {
+        // Re-scan for changes
+        const files = sessionManager.getChangedFiles();
+        for (const file of files) {
+          await sessionManager.recomputeHunks(file.filePath);
+        }
+        changedFilesProvider.refresh();
+        inlineDecorationManager.refreshActiveEditor();
+      }
+    }),
+
+    vscode.commands.registerCommand(COMMANDS.toggleAutocomplete, () => {
+      autocompleteProvider.toggle();
+    }),
+  );
+
+  // Auto-start session if configured
+  const autoStart = vscode.workspace.getConfiguration().get<boolean>(CONFIG.autoStartSession, true);
+  if (autoStart) {
+    // Delay a bit to let the workspace settle
+    setTimeout(() => {
+      sessionManager.start();
+    }, 2000);
+  }
+
+  // Register disposables
+  context.subscriptions.push(
+    sessionManager,
+    fileWatcher,
+    inlineDecorationManager,
+    codeLensProvider,
+    changedFilesProvider,
+    originalContentProvider,
+    autocompleteProvider,
+    sessionStatusBar,
+    treeView,
+  );
+
+  console.log('ClauFlo extension activated');
+}
+
+export function deactivate() {
+  // Cleanup handled by disposables
+}
