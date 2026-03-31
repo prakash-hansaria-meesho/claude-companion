@@ -6,7 +6,6 @@ import { openSideBySideDiff } from './views/sideBySide/SideBySideCommands';
 import { InlineDecorationManager } from './views/inline/InlineDecorationManager';
 import { InlineCodeLensProvider } from './views/inline/InlineCodeLensProvider';
 import { ChangedFilesProvider } from './views/treeView/ChangedFilesProvider';
-import { ClaudeAutocompleteProvider } from './autocomplete/ClaudeAutocompleteProvider';
 import { AcceptedChangesSummaryProvider } from './views/AcceptedChangesSummaryProvider';
 import { COMMANDS, CONFIG } from './utils/constants';
 
@@ -68,18 +67,6 @@ export function activate(context: vscode.ExtensionContext) {
       acceptedSummaryProvider
     )
   );
-
-  // Autocomplete provider — experimental, disabled by default.
-  // Only registered when explicitly enabled via settings or toggle command.
-  const autocompleteProvider = new ClaudeAutocompleteProvider();
-  if (autocompleteProvider.enabled) {
-    context.subscriptions.push(
-      vscode.languages.registerInlineCompletionItemProvider(
-        { pattern: '**' },
-        autocompleteProvider
-      )
-    );
-  }
 
   // Register commands
   context.subscriptions.push(
@@ -218,9 +205,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    vscode.commands.registerCommand(COMMANDS.toggleAutocomplete, () => {
-      autocompleteProvider.toggle();
-    }),
   );
 
   // Auto-start session if configured
@@ -241,7 +225,6 @@ export function activate(context: vscode.ExtensionContext) {
     changedFilesProvider,
     originalContentProvider,
     acceptedSummaryProvider,
-    autocompleteProvider,
     sessionStatusBar,
     treeView,
   );

@@ -1,7 +1,7 @@
 {
   "name": "clau-flo",
   "displayName": "ClauFlo",
-  "description": "Visualize Claude diffs with inline/side-by-side views, accept/reject changes, and Claude-powered autocomplete",
+  "description": "Visualize Claude diffs with inline/side-by-side views, accept/reject changes in real-time",
   "version": "0.2.0",
   "license": "MIT",
   "repository": {
@@ -12,8 +12,7 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other",
-    "Machine Learning"
+    "Other"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -71,10 +70,6 @@
         "command": "clau-flo.refreshSession",
         "title": "ClauFlo: Refresh",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "clau-flo.toggleAutocomplete",
-        "title": "ClauFlo: Toggle Autocomplete"
       }
     ],
     "viewsContainers": {
@@ -167,45 +162,6 @@
             "**/*.lock"
           ],
           "description": "File patterns to exclude from watching"
-        },
-        "clauFlo.autocomplete.enabled": {
-          "type": "boolean",
-          "default": false,
-          "markdownDescription": "**[Experimental]** Enable Claude-powered inline autocomplete. Disabled by default — not recommended for daily use due to latency."
-        },
-        "clauFlo.autocomplete.backend": {
-          "type": "string",
-          "enum": [
-            "cli",
-            "api"
-          ],
-          "default": "cli",
-          "description": "Autocomplete backend: 'cli' uses Claude Code CLI (org license, no API key needed) or 'api' uses Anthropic API directly (requires API key)"
-        },
-        "clauFlo.autocomplete.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "Anthropic API key for autocomplete. Can also be set via ANTHROPIC_API_KEY env variable."
-        },
-        "clauFlo.autocomplete.model": {
-          "type": "string",
-          "enum": [
-            "claude-haiku-4-5-20251001",
-            "claude-sonnet-4-6",
-            "claude-opus-4-6"
-          ],
-          "default": "claude-haiku-4-5-20251001",
-          "description": "Claude model for autocomplete (Haiku recommended for speed)"
-        },
-        "clauFlo.autocomplete.maxTokens": {
-          "type": "number",
-          "default": 256,
-          "description": "Maximum tokens for autocomplete responses"
-        },
-        "clauFlo.autocomplete.debounceMs": {
-          "type": "number",
-          "default": 500,
-          "description": "Debounce interval before triggering autocomplete (ms)"
         }
       }
     },

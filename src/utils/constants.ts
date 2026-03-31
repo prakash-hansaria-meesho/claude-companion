@@ -13,7 +13,6 @@ export const COMMANDS = {
   rejectAll: `${EXTENSION_ID}.rejectAll`,
   openFile: `${EXTENSION_ID}.openFile`,
   refreshSession: `${EXTENSION_ID}.refreshSession`,
-  toggleAutocomplete: `${EXTENSION_ID}.toggleAutocomplete`,
 } as const;
 
 export const CONFIG = {
@@ -21,12 +20,6 @@ export const CONFIG = {
   autoStartSession: 'clauFlo.autoStartSession',
   debounceMs: 'clauFlo.debounceMs',
   excludePatterns: 'clauFlo.excludePatterns',
-  autocompleteEnabled: 'clauFlo.autocomplete.enabled',
-  autocompleteBackend: 'clauFlo.autocomplete.backend',
-  autocompleteApiKey: 'clauFlo.autocomplete.apiKey',
-  autocompleteModel: 'clauFlo.autocomplete.model',
-  autocompleteMaxTokens: 'clauFlo.autocomplete.maxTokens',
-  autocompleteDebounceMs: 'clauFlo.autocomplete.debounceMs',
 } as const;
 
 export const CONTEXT_KEYS = {
