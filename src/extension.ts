@@ -84,11 +84,33 @@ export function activate(context: vscode.ExtensionContext) {
       sessionManager.end();
     }),
 
-    vscode.commands.registerCommand(COMMANDS.toggleViewMode, () => {
+    vscode.commands.registerCommand(COMMANDS.toggleViewMode, async () => {
       const newMode = sessionManager.toggleViewMode();
       vscode.window.showInformationMessage(`Claude Diff: Switched to ${newMode === 'inline' ? 'Inline' : 'Side-by-Side'} mode`);
-      inlineDecorationManager.refreshActiveEditor();
-      codeLensProvider.refresh();
+
+      const editor = vscode.window.activeTextEditor;
+      const filePath = editor?.document.uri.fsPath;
+      const diffFile = filePath ? sessionManager.getDiffFile(filePath) : undefined;
+
+      if (newMode === 'sideBySide') {
+        // Clear inline decorations and open side-by-side diff for current file
+        inlineDecorationManager.clearAllDecorations();
+        codeLensProvider.refresh();
+        if (filePath && diffFile) {
+          openSideBySideDiff(filePath);
+        }
+      } else {
+        // Switching to inline — close the diff editor and reopen the file normally
+        if (filePath && diffFile) {
+          // Close active diff editor tab, then reopen the file
+          await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+          const doc = await vscode.workspace.openTextDocument(filePath);
+          await vscode.window.showTextDocument(doc);
+        }
+        inlineDecorationManager.refreshActiveEditor();
+        codeLensProvider.refresh();
+      }
+
       updateSessionStatusBar();
     }),
 
