@@ -275,6 +275,48 @@ export class SessionManager implements vscode.Disposable {
     return true;
   }
 
+  /**
+   * Returns a snapshot of all session-tracked diffs, original contents, and
+   * current file contents. Call this BEFORE acceptAllChanges() to capture
+   * what's about to be accepted.
+   */
+  captureAcceptedState(): {
+    diffFiles: DiffFile[];
+    snapshots: Map<string, string>;
+    currentContents: Map<string, string>;
+    workspaceRoot: string;
+  } {
+    const diffFilesCopy: DiffFile[] = [];
+    const snapshotsCopy = new Map<string, string>();
+    const currentContents = new Map<string, string>();
+
+    for (const diffFile of this.diffFiles.values()) {
+      // Only include files that have pending changes (about to be accepted)
+      const hasPending = diffFile.hunks.some(h => h.status === 'pending');
+      if (!hasPending && !diffFile.isNew && !diffFile.isDeleted) {
+        continue;
+      }
+
+      diffFilesCopy.push({ ...diffFile, hunks: diffFile.hunks.map(h => ({ ...h })) });
+
+      const snapshot = this.snapshots.get(diffFile.filePath);
+      snapshotsCopy.set(diffFile.filePath, snapshot?.originalContent ?? '');
+
+      try {
+        currentContents.set(diffFile.filePath, fs.readFileSync(diffFile.filePath, 'utf-8'));
+      } catch {
+        currentContents.set(diffFile.filePath, '');
+      }
+    }
+
+    return {
+      diffFiles: diffFilesCopy,
+      snapshots: snapshotsCopy,
+      currentContents,
+      workspaceRoot: this.workspaceRoot,
+    };
+  }
+
   acceptAllChanges(): void {
     for (const diffFile of this.diffFiles.values()) {
       for (const hunk of diffFile.hunks) {

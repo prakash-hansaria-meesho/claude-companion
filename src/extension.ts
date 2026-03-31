@@ -7,6 +7,7 @@ import { InlineDecorationManager } from './views/inline/InlineDecorationManager'
 import { InlineCodeLensProvider } from './views/inline/InlineCodeLensProvider';
 import { ChangedFilesProvider } from './views/treeView/ChangedFilesProvider';
 import { ClaudeAutocompleteProvider } from './autocomplete/ClaudeAutocompleteProvider';
+import { AcceptedChangesSummaryProvider } from './views/AcceptedChangesSummaryProvider';
 import { COMMANDS, CONFIG } from './utils/constants';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -58,6 +59,15 @@ export function activate(context: vscode.ExtensionContext) {
   sessionManager.onSessionStarted(() => updateSessionStatusBar());
   sessionManager.onSessionEnded(() => updateSessionStatusBar());
   sessionManager.onDiffUpdated(() => updateSessionStatusBar());
+
+  // Accepted changes summary provider
+  const acceptedSummaryProvider = new AcceptedChangesSummaryProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      AcceptedChangesSummaryProvider.scheme,
+      acceptedSummaryProvider
+    )
+  );
 
   // Autocomplete provider (disabled by default - enable via settings or toggle command)
   const autocompleteProvider = new ClaudeAutocompleteProvider();
@@ -155,12 +165,26 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    vscode.commands.registerCommand(COMMANDS.acceptAll, () => {
+    vscode.commands.registerCommand(COMMANDS.acceptAll, async () => {
+      // Capture diffs before accepting (so we can show the summary)
+      const state = sessionManager.captureAcceptedState();
+
       sessionManager.acceptAllChanges();
       inlineDecorationManager.clearAllDecorations();
       codeLensProvider.refresh();
       changedFilesProvider.refresh();
       updateSessionStatusBar();
+
+      // Show accepted changes in a summary tab
+      if (state.diffFiles.length > 0) {
+        await acceptedSummaryProvider.showSummary(
+          state.diffFiles,
+          state.snapshots,
+          state.currentContents,
+          state.workspaceRoot
+        );
+      }
+
       vscode.window.showInformationMessage('ClauFlo: All changes accepted');
     }),
 
@@ -219,6 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
     codeLensProvider,
     changedFilesProvider,
     originalContentProvider,
+    acceptedSummaryProvider,
     autocompleteProvider,
     sessionStatusBar,
     treeView,
