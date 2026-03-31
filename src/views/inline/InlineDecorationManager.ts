@@ -10,6 +10,7 @@ export class InlineDecorationManager implements vscode.Disposable {
   private hunkBorderDecorationType: vscode.TextEditorDecorationType;
   private disposables: vscode.Disposable[] = [];
   private diffComputer: DiffComputer;
+  private refreshTimer: NodeJS.Timeout | undefined;
 
   constructor(private sessionManager: SessionManager) {
     this.diffComputer = new DiffComputer();
@@ -48,7 +49,32 @@ export class InlineDecorationManager implements vscode.Disposable {
       this.sessionManager.onSessionEnded(() => this.clearAllDecorations()),
       this.sessionManager.onFileRemoved(() => this.clearAllDecorations()),
       vscode.window.onDidChangeActiveTextEditor(() => this.refreshActiveEditor()),
+      // Re-apply decorations when VS Code reloads a file after external change.
+      // Without this, VS Code's document reload wipes our decorations.
+      vscode.workspace.onDidChangeTextDocument(e => {
+        this.debouncedRefreshForFile(e.document.uri.fsPath);
+      }),
     );
+  }
+
+  /**
+   * Debounced refresh — used when VS Code reloads document content after an
+   * external write. We wait briefly to let VS Code finish updating the buffer.
+   */
+  private debouncedRefreshForFile(filePath: string): void {
+    if (this.sessionManager.viewMode !== 'inline') {
+      return;
+    }
+    if (!this.sessionManager.getDiffFile(filePath)) {
+      return;
+    }
+
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    this.refreshTimer = setTimeout(() => {
+      this.refreshActiveEditor();
+    }, 150);
   }
 
   private updateDecorations(diffFile: DiffFile): void {
@@ -62,6 +88,14 @@ export class InlineDecorationManager implements vscode.Disposable {
     }
 
     this.applyDecorations(editor, diffFile);
+
+    // Also schedule a delayed re-apply to survive VS Code's document reload
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    this.refreshTimer = setTimeout(() => {
+      this.refreshActiveEditor();
+    }, 300);
   }
 
   refreshActiveEditor(): void {
@@ -150,6 +184,9 @@ export class InlineDecorationManager implements vscode.Disposable {
   }
 
   dispose(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
     this.addedDecorationType.dispose();
     this.removedGutterDecorationType.dispose();
     this.removedTextDecorationType.dispose();
