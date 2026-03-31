@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { SessionManager } from '../session/SessionManager';
 import { CONFIG } from '../utils/constants';
 
 /**
- * Watches for file changes and only forwards EXTERNAL changes (e.g. Claude
- * CLI writing to disk) to the SessionManager.
+ * Watches for file changes and distinguishes user edits from Claude's writes.
  *
- * How it works:
- * - When the user saves a file from VS Code, `onDidSaveTextDocument` fires
- *   BEFORE the `FileSystemWatcher.onDidChange`. We record the file path + timestamp.
- * - When `FileSystemWatcher.onDidChange` fires, we check if it was preceded
- *   by a VS Code save within a short window. If yes → user edit, skip it.
- *   If no → external write (Claude), process it.
- * - User edits that are NOT saved don't trigger `FileSystemWatcher` at all,
- *   so they're naturally ignored.
+ * Strategy:
+ * - When the user saves a file from VS Code (onDidSaveTextDocument), we
+ *   update the snapshot to the saved content. This resets the baseline.
+ * - When FileSystemWatcher fires (disk change), we compute the diff against
+ *   the snapshot. Since user saves reset the snapshot, only EXTERNAL changes
+ *   (Claude CLI writing directly to disk) will produce diffs.
+ * - This naturally handles auto-save, manual save, and any VS Code-initiated
+ *   writes — they all reset the baseline.
  */
 export class FileWatcher implements vscode.Disposable {
   private watcher: vscode.FileSystemWatcher;
@@ -21,11 +21,6 @@ export class FileWatcher implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private debounceMs: number;
   private excludePatterns: string[];
-
-  /** Files recently saved by the user inside VS Code */
-  private recentUserSaves: Map<string, number> = new Map();
-  /** How long to consider a save as "recent" (ms) */
-  private readonly USER_SAVE_WINDOW_MS = 1500;
 
   constructor(private sessionManager: SessionManager) {
     const config = vscode.workspace.getConfiguration();
@@ -41,13 +36,12 @@ export class FileWatcher implements vscode.Disposable {
     this.watcher = vscode.workspace.createFileSystemWatcher('**/*');
 
     this.disposables.push(
-      // Track user-initiated saves
+      // When user saves a file in VS Code, update the snapshot baseline.
+      // This ensures the user's own edits never show up as Claude diffs.
       vscode.workspace.onDidSaveTextDocument(doc => {
-        this.recentUserSaves.set(doc.uri.fsPath, Date.now());
-        // Clean up after the window expires
-        setTimeout(() => {
-          this.recentUserSaves.delete(doc.uri.fsPath);
-        }, this.USER_SAVE_WINDOW_MS + 100);
+        if (this.sessionManager.isActive && !this.shouldExclude(doc.uri)) {
+          this.sessionManager.updateSnapshot(doc.uri.fsPath, doc.getText());
+        }
       }),
 
       this.watcher.onDidChange(uri => this.onFileChanged(uri)),
@@ -66,19 +60,6 @@ export class FileWatcher implements vscode.Disposable {
         }
       })
     );
-  }
-
-  /**
-   * Returns true if this file was recently saved by the user from within
-   * VS Code (i.e. NOT an external write from Claude).
-   */
-  private isUserSave(uri: vscode.Uri): boolean {
-    const saveTime = this.recentUserSaves.get(uri.fsPath);
-    if (!saveTime) {
-      return false;
-    }
-    const elapsed = Date.now() - saveTime;
-    return elapsed < this.USER_SAVE_WINDOW_MS;
   }
 
   private shouldExclude(uri: vscode.Uri): boolean {
@@ -109,11 +90,6 @@ export class FileWatcher implements vscode.Disposable {
       return;
     }
 
-    // Skip changes that came from the user saving in VS Code
-    if (this.isUserSave(uri)) {
-      return;
-    }
-
     this.debounce(uri, () => {
       this.sessionManager.handleFileChange(uri);
     });
@@ -121,13 +97,6 @@ export class FileWatcher implements vscode.Disposable {
 
   private onFileCreated(uri: vscode.Uri): void {
     if (!this.sessionManager.isActive || this.shouldExclude(uri)) {
-      return;
-    }
-
-    // New files created by user (e.g. via VS Code's New File) are saved
-    // immediately, so they'll be caught by isUserSave. External creates
-    // (Claude creating a new file) won't have a preceding save event.
-    if (this.isUserSave(uri)) {
       return;
     }
 
@@ -141,9 +110,6 @@ export class FileWatcher implements vscode.Disposable {
       return;
     }
 
-    // File deletions are processed immediately (no debounce)
-    // User deletions from VS Code explorer also don't trigger onDidSave,
-    // but external deletes (Claude) are rare. Allow both for safety.
     this.sessionManager.handleFileChange(uri);
   }
 
@@ -168,7 +134,6 @@ export class FileWatcher implements vscode.Disposable {
       clearTimeout(timer);
     }
     this.debounceTimers.clear();
-    this.recentUserSaves.clear();
     this.disposables.forEach(d => d.dispose());
   }
 }

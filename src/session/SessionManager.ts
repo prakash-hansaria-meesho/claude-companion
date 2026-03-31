@@ -202,6 +202,26 @@ export class SessionManager implements vscode.Disposable {
     return this.snapshots.get(filePath)?.originalContent;
   }
 
+  /**
+   * Update the snapshot baseline for a file. Called when the user saves
+   * a file from VS Code — this resets the baseline so that the user's
+   * own edits don't appear as diffs. Only external changes (Claude)
+   * that happen after this save will produce diffs.
+   */
+  updateSnapshot(filePath: string, content: string): void {
+    this.snapshots.set(filePath, {
+      filePath,
+      originalContent: content,
+      timestamp: Date.now(),
+    });
+
+    // Clear any existing diff for this file since the baseline just changed
+    if (this.diffFiles.has(filePath)) {
+      this.diffFiles.delete(filePath);
+      this._onFileRemoved.fire(filePath);
+    }
+  }
+
   getDiffFile(filePath: string): DiffFile | undefined {
     return this.diffFiles.get(filePath);
   }
