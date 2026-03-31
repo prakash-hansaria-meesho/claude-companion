@@ -204,14 +204,14 @@ Complete from <CURSOR>:`;
       const controller = new AbortController();
       const cancelDisposable = token.onCancellationRequested(() => controller.abort());
 
-      const maxTokens = vscode.workspace.getConfiguration().get<number>(CONFIG.autocompleteMaxTokens, 256);
+      const model = vscode.workspace.getConfiguration().get<string>(CONFIG.autocompleteModel, 'claude-haiku-4-5-20251001');
 
       const { stdout } = await execFileAsync(
         'claude',
         [
           '-p', prompt,
-          '--max-tokens', String(maxTokens),
-          '--no-markdown',
+          '--model', model,
+          '--output-format', 'text',
         ],
         {
           maxBuffer: 1024 * 1024,
