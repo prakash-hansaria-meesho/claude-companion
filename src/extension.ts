@@ -126,30 +126,51 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    vscode.commands.registerCommand(COMMANDS.acceptAllFile, (filePathOrItem: string | { diffFile?: { filePath: string } }) => {
-      const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
-      if (filePath) {
+    vscode.commands.registerCommand(COMMANDS.acceptAllFile, (filePathOrItem?: string | { diffFile?: { filePath: string } }) => {
+      let filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
+      // Fallback to active editor when invoked from command palette (no args)
+      if (!filePath) {
+        filePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      }
+      if (filePath && sessionManager.getDiffFile(filePath)) {
         sessionManager.acceptAllFileChanges(filePath);
         inlineDecorationManager.refreshActiveEditor();
+        codeLensProvider.refresh();
+        changedFilesProvider.refresh();
+        updateSessionStatusBar();
       }
     }),
 
-    vscode.commands.registerCommand(COMMANDS.rejectAllFile, async (filePathOrItem: string | { diffFile?: { filePath: string } }) => {
-      const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
-      if (filePath) {
+    vscode.commands.registerCommand(COMMANDS.rejectAllFile, async (filePathOrItem?: string | { diffFile?: { filePath: string } }) => {
+      let filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.diffFile?.filePath;
+      if (!filePath) {
+        filePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      }
+      if (filePath && sessionManager.getDiffFile(filePath)) {
         await sessionManager.rejectAllFileChanges(filePath);
         inlineDecorationManager.refreshActiveEditor();
+        codeLensProvider.refresh();
+        changedFilesProvider.refresh();
+        updateSessionStatusBar();
       }
     }),
 
     vscode.commands.registerCommand(COMMANDS.acceptAll, () => {
       sessionManager.acceptAllChanges();
       inlineDecorationManager.clearAllDecorations();
+      codeLensProvider.refresh();
+      changedFilesProvider.refresh();
+      updateSessionStatusBar();
+      vscode.window.showInformationMessage('ClauFlo: All changes accepted');
     }),
 
     vscode.commands.registerCommand(COMMANDS.rejectAll, async () => {
       await sessionManager.rejectAllChanges();
       inlineDecorationManager.clearAllDecorations();
+      codeLensProvider.refresh();
+      changedFilesProvider.refresh();
+      updateSessionStatusBar();
+      vscode.window.showInformationMessage('ClauFlo: All changes rejected');
     }),
 
     vscode.commands.registerCommand(COMMANDS.openFile, (filePath: string, forceMode?: string) => {
